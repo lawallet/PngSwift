@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "PngSwift",
+    platforms: [
+            .macOS(.v14), .iOS(.v14)
+    ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
@@ -18,7 +21,10 @@ let package = Package(
             name: "PngSwift"),
         .testTarget(
             name: "PngSwiftTests",
-            dependencies: ["PngSwift"]
+            dependencies: ["PngSwift"],
+            resources: [
+                                .copy("Coding_Sensei.png")
+                            ]
         ),
     ]
 )
