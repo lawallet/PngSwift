@@ -73,6 +73,7 @@ public enum PngPopulatingError: LocalizedError {
     case dataDoesNotMatchOriginalData
     case unexpectedSectionName(unexpectedSection: String)
     case unupdatableSection(unupdatableSection: String)
+    case invalidSectionData(invalidSection: String)
     
     public var errorDescription: String? {
         switch self {
@@ -86,6 +87,8 @@ public enum PngPopulatingError: LocalizedError {
             "Unexpected section name: \(unexpectedSection)"
         case .unupdatableSection(unupdatableSection: let unupdatableSection):
             "The section is not able to be updated: \(unupdatableSection)"
+        case .invalidSectionData(invalidSection: let invalidSection):
+            "Section \(invalidSection) has invalid data"
         }
     }
 }

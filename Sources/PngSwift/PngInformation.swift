@@ -34,6 +34,7 @@ public class PngInformation {
                                                      7: [.IEND]]
     
     private let multipleAllowed: Set<PngHeaderTypes> = [.IDAT, .sPLT, .tEXt, .zTXt, .iTXt]
+    private let needColorType: Set<PngHeaderTypes> = [.sBIT, .bKGD, .tRNS]
     
     init(pngPath: URL) throws(PngLoadingError) {
         sectionOffsets = try PngSectionOffsets(pngPath: pngPath)
@@ -63,13 +64,18 @@ public class PngInformation {
         if (sections == nil) {
             sections = PngSections()
         }
+        copyHeaderSectionIfNeeded(for: sectionType)
         let sectionInfo = try sectionOffsets.populateDataForSection(type: sectionType, nonStandardChunkName: unknownSectionName)
+        if sectionType == .IHDR {
+            sectionOffsets.headerSection = sectionInfo.first as? PngIhdr
+        }
         sections?.setSection(sectionType: sectionType, nonStandardSectionName: unknownSectionName, sectionData: sectionInfo)
     }
     
     private func populateSection(for offset: PngSectionOffsetInfo, unknownSectionName:String = "") throws {
         
         let type = PngHeaderTypes(rawValue: offset.type) ?? .unknown
+        copyHeaderSectionIfNeeded(for: type)
         let sectionArr = try sectionOffsets.populateDataForSection(type: type)
         sections?.setSection(sectionType: type, nonStandardSectionName: unknownSectionName, sectionData: sectionArr)
     }
@@ -81,6 +87,19 @@ public class PngInformation {
         sections?.setSection(sectionType: sectionType, sectionData: sectionArr)
     }
     
+    private func copyHeaderSectionIfNeeded(for type: PngHeaderTypes) {
+        if needColorType.contains(type) {
+            if sections?.isPopulated(sectionType: .IHDR) ?? false  == false{
+                if let sectionInfo = try? sectionOffsets.populateDataForSection(type: .IHDR) {
+                    sections?.setSection(sectionType: type, sectionData: sectionInfo)
+                    sectionOffsets.headerSection = sectionInfo.first as? PngIhdr
+                }
+            } else if sectionOffsets.headerSection == nil {
+                sectionOffsets.headerSection = sections?.ihdrChunk as? PngIhdr
+            }
+            
+        }
+    }
     func writePngToDisk(location: URL) throws(PngSavingError) {
         if sectionOffsets.nonstandardChunks.count > 0 {
             throw PngSavingError.containsUnknownChunks

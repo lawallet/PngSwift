@@ -23,7 +23,7 @@ public class PngSection {
     public private(set) var CRC: UInt32
     public private(set) var sectionProperties: SectionPropertyBits!
     
-    init(length: UInt32, chunkType: PngHeaderTypes, rawChunkType: String, chunkData: Data, CRC: UInt32) {
+    init(length: UInt32, chunkType: PngHeaderTypes, rawChunkType: String, chunkData: Data, CRC: UInt32, bitDepth: UInt8? = nil, colorType: UInt8? = nil) {
         self.length = length
         self.chunkType = chunkType
         self.rawChunkType = rawChunkType
@@ -114,7 +114,7 @@ public class PngSection {
         }
     }
     
-    convenience init?(sectionOffset: PngSectionOffsetInfo?, fileHandle: FileHandle) {
+    convenience init?(sectionOffset: PngSectionOffsetInfo?, fileHandle: FileHandle, bitDepth: UInt8? = nil, colorType: UInt8? = nil) {
         guard let sectionOffset = sectionOffset else {
             return nil
         }
@@ -138,8 +138,14 @@ public class PngSection {
             crcDat.withUnsafeBytes { rawBytes in
                 crcVal = rawBytes.load(as: UInt32.self)
             }
+            let typeData = sectionOffset.type.data(using: .utf8)
+            let validCrc = PngSection.validateCrc(currentCrc: crcVal, theData: typeData! + chunkData)
+            if validCrc == false {
+                // The CRC does not match
+                return nil
+            }
             let chunk = PngHeaderTypes(rawValue: sectionOffset.type) ?? .unknown
-            self.init(length: sectionOffset.SectionLength, chunkType: chunk, rawChunkType: sectionOffset.type, chunkData: chunkData, CRC: crcVal)
+            self.init(length: sectionOffset.SectionLength, chunkType: chunk, rawChunkType: sectionOffset.type, chunkData: chunkData, CRC: crcVal, bitDepth: bitDepth, colorType: colorType)
         } catch {
             return nil
         }
@@ -156,6 +162,17 @@ public class PngSection {
         var chunkBuffer: Data = Data(chunkTypeArr)
         chunkBuffer.append(chunkData)
         return newCrc.bigEndian
+    }
+    
+    static func calculateCrc(data: Data) -> UInt32 {
+        let newCrc = crc(data: data)
+        return newCrc.bigEndian
+    }
+    
+    static func validateCrc(currentCrc: UInt32, theData: Data) -> Bool {
+        let testCrc = calculateCrc(data: theData)
+        if testCrc == currentCrc { return true }
+        return false
     }
     
     static private let crcTable: [UInt32] = {
@@ -188,8 +205,8 @@ public class PngSection {
         return c
     }
     
-    // Make inout?
-    private func makeCrc(crc: UInt32, data: Data) -> UInt32 {
+    // Technically same as above, but it looks different
+    static func makeCrc(crc: UInt32, data: Data) -> UInt32 {
         var c = crc
         let crcTable = PngSection.crcTable
         
@@ -203,6 +220,10 @@ public class PngSection {
     
     private func crc(buf: [UInt8]) -> UInt32 {
         return makeCrc(crc: 0xffffffff, buf: buf) ^ 0xffffffff
+    }
+    
+    static func crc(data: Data) -> UInt32 {
+        return makeCrc(crc: 0xffffffff, data: data) ^ 0xffffffff
     }
 
     

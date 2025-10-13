@@ -28,6 +28,8 @@ public class PngSectionOffsets {
     public private(set) var ztxtChunk: [PngSectionOffsetInfo]?
     public private(set) var nonstandardChunks: [String: PngSectionOffsetInfo] = [:]
     
+    weak var headerSection: PngIhdr?
+    
     var pngLocation: URL
     
     init(pngPath: URL) throws(PngLoadingError) {
@@ -267,8 +269,56 @@ public class PngSectionOffsets {
         if !sanityCheckOffset(for: offset, fileHandle: fileHandle) {
             throw PngPopulatingError.dataDoesNotMatchOriginalData
         }
-        guard let wantedSection = PngSection(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
-        return [wantedSection]
+//        guard let wantedSection = PngSection(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+//        return [wantedSection]
+        return try populateWantedSection(offset: offset, fileHandle: fileHandle)
+    }
+    
+    private func populateWantedSection(offset: PngSectionOffsetInfo, fileHandle: FileHandle) throws(PngPopulatingError) -> [PngSection] {
+        let type = PngHeaderTypes(rawValue: offset.type) ?? .unknown
+        switch type {
+        case .IHDR:
+            guard let wantedSection = PngIhdr(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .PLTE:
+            guard let wantedSection = PngPlte(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .gAMA:
+            guard let wantedSection = PngGama(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .cHRM:
+            guard let wantedSection = PngChrm(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .sRGB:
+            guard let wantedSection = PngSrgb(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .iCCP:
+            guard let wantedSection = PngIccp(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .tIME:
+            guard let wantedSection = PngTime(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .IEND:
+            guard let wantedSection = PngSection(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .sBIT:
+            guard let wantedSection = PngSbit(sectionOffset: offset, fileHandle: fileHandle, colorType: headerSection?.colorType) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .bKGD:
+            guard let wantedSection = PngBkgd(sectionOffset: offset, fileHandle: fileHandle, bitDepth: headerSection?.bitDepth, colorType: headerSection?.colorType) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .hIST:
+            guard let wantedSection = PngSection(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .tRNS:
+            guard let wantedSection = PngTrns(sectionOffset: offset, fileHandle: fileHandle, bitDepth: headerSection?.bitDepth, colorType: headerSection?.colorType) else { throw PngPopulatingError.sectionNotFound }
+            return [wantedSection]
+        case .pHYs:
+            guard let wantedSection = PngPhys(sectionOffset: offset, fileHandle: fileHandle) else { throw PngPopulatingError.sectionNotFound}
+            return [wantedSection]
+        default:
+            throw PngPopulatingError.sectionNotFound
+        }
     }
     
     private func populateDataForMultiSection(offsets: [PngSectionOffsetInfo]?, fileHandle: FileHandle) throws(PngPopulatingError) -> [PngSection] {
@@ -278,12 +328,45 @@ public class PngSectionOffsets {
                 throw PngPopulatingError.dataDoesNotMatchOriginalData
             }
         }
-        let wantedSections = offsets.compactMap({ PngSection(sectionOffset: $0, fileHandle: fileHandle)})
+        return try populateWantedSections(offsets: offsets, fileHandle: fileHandle)
+
+    }
+    
+    private func populateWantedSections(offsets: [PngSectionOffsetInfo]?, fileHandle: FileHandle) throws(PngPopulatingError) -> [PngSection] {
+        guard let offsets = offsets else { throw PngPopulatingError.sectionNotFound }
+        for offset in offsets {
+            if !sanityCheckOffset(for: offset, fileHandle: fileHandle) {
+                throw PngPopulatingError.dataDoesNotMatchOriginalData
+            }
+        }
+        let firstSection = offsets.first!
+        let wantedType = PngHeaderTypes(rawValue: firstSection.type) ?? .unknown
+        var wantedSections: [PngSection]
+        switch wantedType {
+        case .tEXt:
+            wantedSections = offsets.compactMap({ PngText(sectionOffset: $0, fileHandle: fileHandle)})
+
+        case .iTXt:
+            wantedSections = offsets.compactMap({ PngItxt(sectionOffset: $0, fileHandle: fileHandle)})
+
+        case .zTXt:
+            wantedSections = offsets.compactMap({ PngZtxt(sectionOffset: $0, fileHandle: fileHandle)})
+
+        case .sPLT:
+            wantedSections = offsets.compactMap({ PngSplt(sectionOffset: $0, fileHandle: fileHandle)})
+
+        case .IDAT:
+            wantedSections = offsets.compactMap({ PngSection(sectionOffset: $0, fileHandle: fileHandle)})
+            
+        default:
+            throw PngPopulatingError.sectionNotFound
+        }
         if !wantedSections.isEmpty {
             return wantedSections
         } else {
             throw PngPopulatingError.sectionNotFound
         }
+        
     }
     
     // Sanity check data to make sure the file wasn't changed
