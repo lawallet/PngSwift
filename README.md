@@ -21,3 +21,4 @@ try? pngInfo?.writePngToDisk(location: saveUrl)
 ## Known Issues/Limitations:
 - Modifying critical or non-standard chunks not allowed
 - Can not save files with non-standard chunks
+- Compression/Decompression not supported
