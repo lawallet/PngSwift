@@ -2,19 +2,17 @@ import XCTest
 @testable import PngSwift
 
 final class PngSwiftTests: XCTestCase {
+    let filename = "Coding_Sensei"
+    
     func testLoad() throws {
-        let pngFile = Bundle.module.url(forResource: "Coding_Sensei", withExtension: "png")
+        let pngFile = Bundle.module.url(forResource: filename, withExtension: "png")
         XCTAssertNotNil(pngFile)
         let pngInfo = try? PngInformation(pngPath: pngFile!)
         XCTAssertNotNil(pngInfo)
-//        try? pngInfo?.populateAllSections()
-//        XCTAssertNotNil(pngInfo?.sections?.ihdrChunk)
-        let pngData = try? pngInfo?.createPngData()
-        XCTAssertNotNil(pngData)
     }
     
     func testPopulateAllSections() throws {
-        let pngFile = Bundle.module.url(forResource: "Coding_Sensei", withExtension: "png")
+        let pngFile = Bundle.module.url(forResource: filename, withExtension: "png")
         XCTAssertNotNil(pngFile)
         let pngInfo = try? PngInformation(pngPath: pngFile!)
         XCTAssertNotNil(pngInfo)
@@ -23,7 +21,7 @@ final class PngSwiftTests: XCTestCase {
     }
     
     func testCreatePngDataPopulated() throws {
-        let pngFile = Bundle.module.url(forResource: "Coding_Sensei", withExtension: "png")
+        let pngFile = Bundle.module.url(forResource: filename, withExtension: "png")
         XCTAssertNotNil(pngFile)
         let pngInfo = try? PngInformation(pngPath: pngFile!)
         XCTAssertNotNil(pngInfo)
@@ -34,7 +32,7 @@ final class PngSwiftTests: XCTestCase {
     }
     
     func testCreatePngDataNotPopulated() throws {
-        let pngFile = Bundle.module.url(forResource: "Coding_Sensei", withExtension: "png")
+        let pngFile = Bundle.module.url(forResource: filename, withExtension: "png")
         XCTAssertNotNil(pngFile)
         let pngInfo = try? PngInformation(pngPath: pngFile!)
         XCTAssertNotNil(pngInfo)
